@@ -1,7 +1,6 @@
 # room_game.py
 
 class Door:
-    """A door connects one room to another and has a color."""
     def __init__(self, color, leads_to, locked=False):
         self.color = color
         self.leads_to = leads_to
@@ -9,10 +8,9 @@ class Door:
 
 
 class Key:
-    """Represents a key that can unlock a specific colored door."""
     def __init__(self, color, found_in, description=""):
         self.color = color
-        self.found_in = found_in  # Room where this key can be found
+        self.found_in = found_in
         self.description = description
 
     def describe(self):
@@ -20,13 +18,13 @@ class Key:
 
 
 class Room:
-    """Represents a room in the game."""
     def __init__(self, name, description):
         self.name = name
         self.description = description
-        self.doors = []  # List of Door objects
-        self.keys = []   # List of Key objects found here
-        self.actions = {}  # Custom room actions
+        self.doors = []
+        self.keys = []
+        self.actions = {}
+        self.state = {}  # Stores arbitrary room state (like "light_on": False)
 
     def add_door(self, color, room, locked=False):
         self.doors.append(Door(color, room, locked))
@@ -66,31 +64,25 @@ class Room:
 
 
 class Player:
-    """Represents the player and their inventory."""
     def __init__(self, start_room):
         self.current_room = start_room
-        self.inventory = []  # List of Key objects
+        self.inventory = []
 
     def take_key(self):
-        """Pick up all keys in the current room."""
         if not self.current_room.keys:
             print("There are no keys here to take.")
             return
-
         for key in list(self.current_room.keys):
             print(f"You picked up the {key.color} key.")
             self.inventory.append(key)
             self.current_room.remove_key(key)
 
     def use_key(self, color):
-        """Attempt to unlock a door of the given color."""
-        # Check if player has the matching key
         key = next((k for k in self.inventory if k.color == color), None)
         if not key:
             print(f"You don’t have a {color} key.")
             return
 
-        # Find the locked door in this room
         door = next((d for d in self.current_room.doors if d.color == color), None)
         if not door:
             print(f"There is no {color} door here.")
@@ -100,12 +92,10 @@ class Player:
             print(f"The {color} door is already unlocked.")
             return
 
-        # Unlock it!
         door.locked = False
         print(f"You used the {color} key to unlock the door!")
 
     def list_inventory(self):
-        """Show what keys the player currently holds."""
         if not self.inventory:
             print("You’re not carrying any keys.")
         else:
@@ -115,13 +105,21 @@ class Player:
 
 
 class Game:
-    """Manages game setup and player movement."""
     def __init__(self):
         self.keys = []
         self.create_world()
 
+    # --- Room-specific actions can be defined as methods here ---
+    def toggle_light(self, room):
+        """Toggle a room's light on/off."""
+        light_on = room.state.get("light_on", False)
+        room.state["light_on"] = not light_on
+        if room.state["light_on"]:
+            print("You pull the string — the light flickers on, revealing shelves of old clothes.")
+        else:
+            print("You pull the string again — the light clicks off, and the closet goes dark.")
+
     def create_world(self):
-        # --- Create Rooms ---
         kitchen = Room("Kitchen", "A bright kitchen with the smell of fresh bread.")
         living_room = Room("Living Room", "A cozy space with a roaring fireplace.")
         study = Room("Study", "A quiet study filled with dusty books.")
@@ -129,7 +127,7 @@ class Game:
         bed_room = Room("Bedroom", "A dim room with clothes scattered about.")
         bedroom_closet = Room("Bedroom Closet", "A walk-in closet with a single pull-string light.")
 
-        # --- Connect Rooms (some locked) ---
+        # Connect rooms
         kitchen.add_door("red", living_room)
         kitchen.add_door("blue", study, locked=True)
         living_room.add_door("green", kitchen)
@@ -141,31 +139,22 @@ class Game:
         bed_room.add_door("white", bedroom_closet)
         bedroom_closet.add_door("white", living_room)
 
-        # --- Create Keys ---
+        # Create and place keys
         key_blue = Key("blue", found_in=living_room, description="engraved with a small 'S'.")
         key_cyan = Key("cyan", found_in=garden, description="it sparkles faintly in the sunlight.")
 
 
-        # --- Place Keys ---
         living_room.add_key(key_blue)
         garden.add_key(key_cyan)
         self.keys.extend([key_blue, key_cyan])
 
-        # --- Add Room-Specific Action (closet light) ---
-        bedroom_closet.light_on = False
-        def toggle_light():
-            bedroom_closet.light_on = not bedroom_closet.light_on
-            if bedroom_closet.light_on:
-                print("You pull the string — the light flickers on, revealing shelves of old clothes.")
-            else:
-                print("You pull the string again — the light clicks off, and the closet goes dark.")
-        bedroom_closet.add_action("pull string", toggle_light)
+        # Add light toggle action (now cleanly referencing a Game method)
+        bedroom_closet.state["light_on"] = False
+        bedroom_closet.add_action("pull string", lambda: self.toggle_light(bedroom_closet))
 
-        # --- Player starts in Kitchen ---
         self.player = Player(start_room=kitchen)
 
     def play(self):
-        """Main game loop."""
         print("Welcome to the Color Door Adventure!")
         print("Commands: [color] (to move), 'take key', 'use [color] key', 'inventory', 'quit'")
         print("Some rooms have unique actions — try typing them!\n")
@@ -182,7 +171,6 @@ class Game:
                 self.player.take_key()
 
             elif command.startswith("use "):
-                # Example: "use blue key"
                 parts = command.split()
                 if len(parts) == 3 and parts[2] == "key":
                     color = parts[1]
@@ -194,12 +182,10 @@ class Game:
                 self.player.list_inventory()
 
             elif command in self.player.current_room.actions:
-                # Perform a custom room action
                 action = self.player.current_room.actions[command]
                 action()
 
             else:
-                # Handle movement by door color
                 color = command
                 door = next((d for d in self.player.current_room.doors if d.color == color), None)
                 if not door:
@@ -216,3 +202,4 @@ class Game:
 if __name__ == "__main__":
     game = Game()
     game.play()
+
