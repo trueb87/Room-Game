@@ -141,7 +141,7 @@ class Game:
 
         # Create and place keys
         key_blue = Key("blue", found_in=living_room, description="engraved with a small 'S'.")
-        key_cyan = Key("cyan", found_in=garden, description="it sparkles faintly in the sunlight.")
+        key_cyan = Key("orange", found_in=garden, description="it sparkles faintly in the sunlight.")
 
 
         living_room.add_key(key_blue)
